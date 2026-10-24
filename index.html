@@ -394,8 +394,8 @@ function onTimeUp(){
 document.addEventListener('submit', e => {
   const f = e.target.closest('[data-form]'); if (!f) return; e.preventDefault();
   const kind = f.dataset.form;
-  if (kind === 'join') { const v = ($('#name').value || '').trim().slice(0,18); if (!v) return; PL.name = v; if (!LIVE) { PL.qi = 0; PL.score = 0; PL.screen = 'ready'; PL.answers = {}; } savePL(); role = 'player'; lsSet('role', role); if (LIVE) sendJoin(true); render(); }
-  if (kind === 'pin') { const v = ($('#pin').value || '').trim(); if (v === String(hostCfg.pin)) { role = 'host'; lsSet('role', role); view.hostPage = ''; view.pinErr = ''; if (LIVE) { ensureMqtt(); publishState(); } render(); } else { view.pinErr = 'Ese PIN no es. Probá de nuevo.'; render(); } }
+  if (kind === 'join') { const v = ($('#name').value || '').trim().slice(0,18); if (!v) return; PL.name = v; if (!LIVE) { PL.qi = 0; PL.score = 0; PL.screen = 'ready'; PL.answers = {}; } savePL(); role = 'player'; lsSet('role', role); if (LIVE) sendJoin(true); keepAwake(); render(); }
+  if (kind === 'pin') { const v = ($('#pin').value || '').trim(); if (v === String(hostCfg.pin)) { role = 'host'; lsSet('role', role); view.hostPage = ''; view.pinErr = ''; if (LIVE) { ensureMqtt(); publishState(); } keepAwake(); render(); } else { view.pinErr = 'Ese PIN no es. Probá de nuevo.'; render(); } }
   if (kind === 'manual') { const nm = ($('#m-name').value||'').trim(), sc = parseInt($('#m-score').value, 10); if (!nm || isNaN(sc)) return; H.manual = H.manual || []; H.manual.push({ id: uid(), name: nm, score: sc }); saveH(); render(); }
 });
 document.addEventListener('click', e => {
@@ -441,12 +441,12 @@ function ensureMqtt(){
   live.client = c;
   c.on('connect', () => {
     live.connected = true; live.status = 'on';
-    if (role === 'host') { c.subscribe([T.join, T.answer], { qos: 1 }); publishState(); }
-    else { c.subscribe(T.state, { qos: 1 }); if (PL.name) sendJoin(true); }
-    const p = $('#pill'); if (p) render();
+    c.subscribe([T.state, T.join, T.answer], { qos: 1 });
+    if (role === 'host') publishState(); else if (PL.name) sendJoin(true);
+    updatePill();
   });
-  c.on('reconnect', () => { live.status = 'connecting'; const p = $('#pill'); if (p) render(); });
-  c.on('close', () => { live.connected = false; if (live.status === 'on') { live.status = 'connecting'; const p = $('#pill'); if (p) render(); } });
+  c.on('reconnect', () => { live.status = 'connecting'; updatePill(); });
+  c.on('close', () => { live.connected = false; if (live.status === 'on') { live.status = 'connecting'; updatePill(); } });
   c.on('error', () => { live.status = live.connected ? 'connecting' : 'off'; });
   c.on('message', (topic, payload) => {
     let msg; try { msg = JSON.parse(payload.toString()); } catch(e){ return; }
@@ -455,8 +455,12 @@ function ensureMqtt(){
     else if (role === 'host' && topic === T.join) hostOnJoin(msg);
     else if (role === 'host' && topic === T.answer) hostOnAnswer(msg);
   });
-  setTimeout(() => { if (!live.connected && live.status !== 'on') { live.status = 'off'; const p = $('#pill'); if (p) render(); } }, 12000);
+  setTimeout(() => { if (!live.connected && live.status !== 'on') { live.status = 'off'; updatePill(); if (role !== 'host' && PL.name && !live.state) render(); } }, 12000);
 }
+function updatePill(){ const p = $('#pill'); if (!p) return; const s = live.status; p.className = 'pill ' + (s==='on'?'on':s==='off'?'off':''); p.innerHTML = '<i></i>' + (s==='on'?'En vivo':s==='off'?'Sin conexión':'Conectando…'); }
+let wakeLock = null;
+async function keepAwake(){ try { if (navigator.wakeLock && !wakeLock) { wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', () => { wakeLock = null; }); } } catch(e){ wakeLock = null; } }
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && (role === 'host' || PL.name)) keepAwake(); });
 function pub(topic, obj, retain){ if (!live.client) return; try { live.client.publish(topic, JSON.stringify(obj), { qos: 1, retain: !!retain }); } catch(e){} }
 // player side
 function sendJoin(force){
@@ -474,7 +478,7 @@ function handleState(st){
   }
   if (PL.name && !(st.players||[]).some(p => p.id === PL.id)) sendJoin(false);
   const sig = [st.gameId, st.phase, st.qi, (st.players||[]).map(p=>p.id+':'+p.name+':'+p.score).join('|'), JSON.stringify(st.reveal||null), JSON.stringify(st.question||null), JSON.stringify(st.cfg||null)].join('#');
-  if (role !== 'host' && sig !== live.sig) { live.sig = sig; render(); }
+  if (role !== 'host' && PL.name && sig !== live.sig) { live.sig = sig; render(); }
 }
 function playerAnswer(k){
   const st = live.state; if (!st || st.phase !== 'question') return;
@@ -501,7 +505,7 @@ function hostOnJoin(m){
   const p = H.players[m.id];
   if (p) { p.name = name; p.lastSeen = Date.now(); }
   else H.players[m.id] = { id:String(m.id), name, score:0, joinedAt:Date.now(), lastSeen:Date.now() };
-  saveH(); schedulePublish(); if (H.phase === 'lobby') render();
+  saveH(); schedulePublish(); if (H.phase === 'lobby' && !view.hostPage) render();
 }
 function hostOnAnswer(m){
   if (H.phase !== 'question' || m.gameId !== H.gameId || m.qi !== H.qi) return;
@@ -531,6 +535,7 @@ function hostReveal(){
 // heartbeat so late joiners and reconnecting phones get a fresh state
 setInterval(() => { if (role === 'host' && LIVE && live.connected) publishState(); }, 2500);
 setInterval(() => { if (role !== 'host' && LIVE && live.state && PL.name) { const st = live.state; if (!(st.players||[]).some(p=>p.id===PL.id)) sendJoin(false); } }, 5000);
+setInterval(() => { if (role !== 'host' && LIVE && PL.name) sendJoin(true); }, 15000);
 
 // ---------- confetti (podium screens)
 (function(){
@@ -538,6 +543,7 @@ setInterval(() => { if (role !== 'host' && LIVE && live.state && PL.name) { cons
   function start(){
     if (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     if (!canvas) { canvas = document.createElement('canvas'); canvas.className = 'confetti'; document.body.appendChild(canvas); ctx = canvas.getContext('2d'); }
+    if (!ctx) return;
     canvas.width = innerWidth; canvas.height = innerHeight; parts = [];
     const cols = ['#ff7a59','#ffd166','#3ddc97','#3d8bff','#ff5c7a','#2ec4b6','#ffffff'];
     for (let i = 0; i < 140; i++) parts.push({ x: Math.random()*canvas.width, y: -20 - Math.random()*canvas.height*0.6, w: 6+Math.random()*6, h: 8+Math.random()*8, c: cols[i%cols.length], vy: 2+Math.random()*3, vx: -1+Math.random()*2, r: Math.random()*Math.PI, vr: -0.1+Math.random()*0.2 });
