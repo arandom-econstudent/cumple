@@ -122,26 +122,23 @@ const HOST_NAME = 'Estanis';
 const ROOM = 'cumple-estanis-2410';
 const BROKERS = ['wss://broker.emqx.io:8084/mqtt','wss://broker.hivemq.com:8884/mqtt','wss://test.mosquitto.org:8081'];
 const DEFAULT_CFG = { grace:5, total:30, max:1000, min:300, pin:'2410' };
-const QV = 2; // bump when the default questions change so an existing host picks them up
+const QV = 5; // bump when the default questions change so an existing host picks them up
 const DEFAULT_QUESTIONS = [
   {q:'¿Cuándo es el cumpleaños de Estanis?', opts:['20 de octubre','21 de octubre','24 de octubre','20 y 21 de octubre'], ans:3},
+  {q:'¿Cuál es la bebida favorita de Estanis?', opts:['Coca','Fanta','Limonada','Aquarius de pera'], ans:2},
   {q:'¿Cuál es la marca personal de Estanis en 800 metros?', opts:['1:45.10','1:47.35','1:49.80','1:52.00'], ans:1},
-  {q:'¿En qué universidad estudió Estanis?', opts:['UBA','Di Tella','San Andrés','UCA'], ans:2},
-  {q:'¿Qué carrera estudió?', opts:['Administración de Empresas','Economía','Ingeniería Industrial','Abogacía'], ans:1},
-  {q:'¿Qué beca tuvo en la universidad?', opts:['Solo deportiva','Solo académica','Por mérito académico y deportivo','Ninguna, pagó todo'], ans:2},
+  {q:'¿Cuál es la fruta favorita de Estanis?', opts:['Bananas','Frutillas','Pera','Manzanas'], ans:0},
   {q:'¿Cuántos perros tuvo Estanis?', opts:['1','2','3','4'], ans:1},
-  {q:'¿En qué año fue campeón argentino U23 de 800 m?', opts:['2019','2020','2021','2022'], ans:2},
-  {q:'¿Qué medalla ganó en los Juegos Sudamericanos U23 de 2021?', opts:['Oro','Plata','Bronce','Volvió con las manos vacías'], ans:2},
-  {q:'¿De qué fue campeón en 2022?', opts:['Sudamericano absoluto','Panamericano universitario','Iberoamericano','Maratón de Buenos Aires'], ans:1},
-  {q:'¿Qué prefiere Estanis como destino de vacaciones?', opts:['El sur','La playa','Europa','El desierto'], ans:1},
-  {q:'¿A qué se dedica Estanis en X3M?', opts:['Diseña personajes de videojuegos','Optimiza cómo ganan plata con publicidad las apps y juegos','Lleva la contabilidad','Programa los juegos'], ans:1},
-  {q:'¿Qué fundó Estanis en 2021 junto a socios?', opts:['Una heladería','Un fondo de inversión','Una app de citas','Un club de running'], ans:1},
-  {q:'¿Qué negocio tuvo entre 2021 y 2023?', opts:['Un exchange OTC de cripto','Una cervecería artesanal','Un canal de YouTube de recetas','Una agencia de viajes'], ans:0},
-  {q:'¿De qué idioma tiene un certificado DELF A2?', opts:['Italiano','Francés','Portugués','Alemán'], ans:1},
-  {q:'¿Cuántos idiomas habla o estudia Estanis (contando el español)?', opts:['2','3','4','5'], ans:3},
-  {q:'¿En qué año terminó la carrera?', opts:['2020','2021','2022','2023'], ans:2},
-  {q:'¿Dónde vive Estanis?', opts:['Palermo','San Isidro','Tigre','Belgrano'], ans:1},
-  {q:'¿Cuál es el signo de Estanis?', opts:['Libra','Escorpio','Sagitario','Virgo'], ans:1}
+  {q:'¿Qué prefiere Estanis como destino de vacaciones?', opts:['La playa','El sur','Europa','El desierto'], ans:0},
+  {q:'¿Cuántas bananas comió Estanis en Salta el día que Mati le dijo que no podía comer más?', opts:['4','5','6','7'], ans:3},
+  {q:'¿Quién es la profesora o maestra favorita de Estanis?', opts:['Julio Perlioni','Martín Garay','Rosita','Sergio López'], ans:2},
+  {q:'¿Qué marca (PB) hizo Estanis en 1000 metros en 2012?', opts:['2’59”','3’03”','3’12”','3’05”'], ans:1},
+  {q:'¿Cuál es la ciudad favorita de Estanis en Europa?', opts:['París','Roma','Budapest','Copenhague'], ans:2},
+  {q:'¿En qué torneo corrió Estanis su mejor carrera de 800 metros?', opts:['Nacional Mayores','Metropolitano','Gran Prix Argentino','EL LEGENDARIO Gerardo Bönhoff'], ans:3},
+  {q:'¿Cuál es la película favorita de Estanis?', opts:['Bastardos sin gloria','Inception','Fragmentado','Akira'], ans:1},
+  {q:'¿Cuál es el color favorito de Estanis? (el de antes y el de ahora)', opts:['Antes azul, ahora rojo','Antes rojo, ahora azul','Antes verde, ahora azul','Antes azul, ahora verde'], ans:2},
+  {q:'¿Cuál es la comida favorita de Estanis?', opts:['Milanesa','Hamburguesa','Sushi','Salmón'], ans:1},
+  {q:'¿Cuál es la mejor marca oficial de Estanis en 200 metros?', opts:['21.98','22.36','22.89','23.54'], ans:3}
 ];
 const LETTERS = ['A','B','C','D'], SHAPES = ['▲','◆','●','■'], CLS = ['a','b','c','d'];
 
@@ -201,7 +198,7 @@ function newGame(){
   saveH();
 }
 if (!H) newGame();
-if (H.qv !== QV) { H.questions = DEFAULT_QUESTIONS.map(q=>({...q, opts:q.opts.slice()})); H.qv = QV; saveH(); }
+if (H.qv !== QV) { H.questions = DEFAULT_QUESTIONS.map(q=>({...q, opts:q.opts.slice()})); H.qv = QV; if (H.phase !== 'lobby') { H.phase = 'lobby'; H.qi = -1; H.answers = {}; H.lastReveal = null; H.startedAt = 0; H.endsAt = 0; } saveH(); }
 function activePlayers(){ const now = Date.now(); return Object.values(H.players).filter(p => now - (p.lastSeen||0) < 150000); }
 
 // ---------- rendering
