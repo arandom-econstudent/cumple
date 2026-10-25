@@ -122,7 +122,7 @@ const HOST_NAME = 'Estanis';
 const ROOM = 'cumple-estanis-2410';
 const BROKERS = ['wss://broker.emqx.io:8084/mqtt','wss://broker.hivemq.com:8884/mqtt','wss://test.mosquitto.org:8081'];
 const DEFAULT_CFG = { grace:5, total:30, max:1000, min:300, pin:'2410' };
-const QV = 5; // bump when the default questions change so an existing host picks them up
+const QV = 6; // bump when the default questions change so an existing host picks them up
 const DEFAULT_QUESTIONS = [
   {q:'¿Cuándo es el cumpleaños de Estanis?', opts:['20 de octubre','21 de octubre','24 de octubre','20 y 21 de octubre'], ans:3},
   {q:'¿Cuál es la bebida favorita de Estanis?', opts:['Coca','Fanta','Limonada','Aquarius de pera'], ans:2},
@@ -138,7 +138,8 @@ const DEFAULT_QUESTIONS = [
   {q:'¿Cuál es la película favorita de Estanis?', opts:['Bastardos sin gloria','Inception','Fragmentado','Akira'], ans:1},
   {q:'¿Cuál es el color favorito de Estanis? (el de antes y el de ahora)', opts:['Antes azul, ahora rojo','Antes rojo, ahora azul','Antes verde, ahora azul','Antes azul, ahora verde'], ans:2},
   {q:'¿Cuál es la comida favorita de Estanis?', opts:['Milanesa','Hamburguesa','Sushi','Salmón'], ans:1},
-  {q:'¿Cuál es la mejor marca oficial de Estanis en 200 metros?', opts:['21.98','22.36','22.89','23.54'], ans:3}
+  {q:'¿Cuál es la mejor marca oficial de Estanis en 200 metros?', opts:['21.98','22.36','22.89','23.54'], ans:3},
+  {q:'¿Cuál es la mejor marca de Estanis en jabalina (600 g, 2017)?', opts:['32.79','36.48','39.45','42.30'], ans:1}
 ];
 const LETTERS = ['A','B','C','D'], SHAPES = ['▲','◆','●','■'], CLS = ['a','b','c','d'];
 
